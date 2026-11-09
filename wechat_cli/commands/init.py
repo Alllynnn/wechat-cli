@@ -19,9 +19,19 @@ def init(db_dir, force):
 
     # 1. 检查是否已初始化
     if os.path.exists(CONFIG_FILE) and os.path.exists(KEYS_FILE) and not force:
-        click.echo(f"已初始化（配置: {CONFIG_FILE}）")
-        click.echo("使用 --force 重新提取密钥")
-        return
+        try:
+            with open(KEYS_FILE, encoding="utf-8") as f:
+                existing_keys = json.load(f)
+        except (OSError, ValueError):
+            existing_keys = {}
+        if isinstance(existing_keys, dict) and any(
+            isinstance(info, dict) and info.get("enc_key")
+            for name, info in existing_keys.items() if not name.startswith("_")
+        ):
+            click.echo(f"已初始化（配置: {CONFIG_FILE}）")
+            click.echo("使用 --force 重新提取密钥")
+            return
+        click.echo("[!] 已有密钥文件为空或无效，重新提取")
 
     # 2. 创建状态目录
     os.makedirs(STATE_DIR, exist_ok=True)
@@ -47,6 +57,8 @@ def init(db_dir, force):
     try:
         from ..keys import extract_keys
         key_map = extract_keys(db_dir, KEYS_FILE)
+        if not key_map:
+            raise RuntimeError("未提取到有效密钥，初始化未完成")
     except RuntimeError as e:
         click.echo(f"\n[!] 密钥提取失败: {e}", err=True)
         if "sudo" not in str(e).lower():

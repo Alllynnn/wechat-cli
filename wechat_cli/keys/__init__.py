@@ -3,13 +3,14 @@
 import platform
 
 
-def extract_keys(db_dir, output_path, pid=None):
+def extract_keys(db_dir, output_path, pid=None, timeout=None):
     """提取微信数据库密钥并保存到 output_path。
 
     Args:
         db_dir: 微信数据库目录（db_storage）
         output_path: all_keys.json 输出路径
         pid: 可选，指定微信进程 PID（默认自动检测）
+        timeout: macOS 扫描超时秒数（默认 300 秒）
 
     Returns:
         dict: salt_hex -> enc_key_hex 的映射
@@ -20,7 +21,7 @@ def extract_keys(db_dir, output_path, pid=None):
     system = platform.system().lower()
     if system == "darwin":
         from .scanner_macos import extract_keys as _extract
-        return _extract(db_dir, output_path, pid=pid)
+        return _extract(db_dir, output_path, pid=pid, timeout=timeout)
     elif system == "windows":
         from .scanner_windows import extract_keys as _extract
         return _extract(db_dir, output_path, pid=pid)

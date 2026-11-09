@@ -31,7 +31,9 @@
 
 AI Agent 请直接移步到“安装（给 Agent 看）”
 
-### npm（推荐）
+> 本 fork 的新版 macOS 扫描器尚未发布到 npm/PyPI，请使用下方源码安装方式。macOS 需要 Xcode Command Line Tools（`xcode-select --install`）。
+
+### npm（上游包，不含本 fork 的修改）
 
 ```bash
 npm install -g @canghe_ai/wechat-cli
@@ -56,7 +58,7 @@ pip install wechat-cli
 ### 从源码安装
 
 ```bash
-git clone https://github.com/freestylefly/wechat-cli.git
+git clone https://github.com/Alllynnn/wechat-cli.git
 cd wechat-cli
 pip install -e .
 ```
@@ -68,7 +70,7 @@ pip install -e .
 直接将在你的 Claude Code 或者 OpenClaw 中输入以下提示即可：
 
 ```bash
-帮我配置并安装：npm install -g @canghe_ai/wechat-cli
+请从 https://github.com/Alllynnn/wechat-cli 源码安装；macOS 安装后执行 wechat-cli init --prepare-helper。
 ```
 
 比如在 Claude Code 中输入：
@@ -85,6 +87,8 @@ pip install -e .
 
 ```bash
 # macOS/Linux: 可能需要 sudo 权限
+# macOS only: prepare the helper before scanning
+wechat-cli init --prepare-helper
 sudo wechat-cli init
 
 # Windows: 在有足够权限的终端中运行
@@ -117,34 +121,17 @@ wechat-cli init
 
 未开启此权限会导致工具无法访问微信数据目录，密钥提取将失败。
 
-#### macOS 遇到 `task_for_pid failed` 错误？
+#### macOS 新版扫描器
 
-在某些 macOS 系统上，即使使用了 `sudo`，`init` 也可能报 `task_for_pid failed`。这是 macOS 的安全策略限制了进程内存访问。
-
-**WeChat CLI 会自动尝试修复此问题**——对微信重新签名以获取必要权限（会保留微信原有权限）。按提示操作即可：
-
-1. 工具会自动对微信重新签名
-2. 完全退出微信（不是最小化）
-3. 重新打开微信并登录
-4. 再次执行 `sudo wechat-cli init`
-
-如果自动签名失败，可以手动执行：
+先编译并签名本工具的独立 helper（不修改微信）：
 
 ```bash
-# 先退出微信，然后：
-sudo codesign --force --sign - --entitlements /dev/stdin /Applications/WeChat.app <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.get-task-allow</key>
-    <true/>
-</dict>
-</plist>
-EOF
+wechat-cli init --prepare-helper
 ```
 
-> **温馨提示：** 重新签名是安全的，**不会**导致封号或账号异常。但可能影响微信的部分功能或自动更新。如果发现任何功能异常（如搜一搜无法使用），或想更新到微信最新版，直接从[微信官网](https://mac.weixin.qq.com/)重新下载安装即可，**无需重新执行 init**，已有的配置和密钥不受影响。
+保持微信已登录，再执行 `sudo wechat-cli init --force`。请选当前登录账号的数据目录；可用 `--db-dir` 明确指定。默认扫描超时为 300 秒，可用 `--timeout 600` 调整。
+
+扫描器查找 Config.Cipher 对象及 XOR 混淆候选，逐库校验首页 HMAC，失败不覆盖已有密钥。若出现 `task_for_pid` 权限拒绝，请检查管理员权限和系统访问权限；工具不会重签微信、关闭 SIP 或自动重启微信。
 
 ### 第二步 — 开始使用
 

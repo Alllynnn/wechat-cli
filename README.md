@@ -31,7 +31,9 @@ Chat history · Contacts · Sessions · Favorites · Statistics · Export
 
 AI Agents — skip ahead to "Installation (For AI Agents)" below.
 
-### npm (Recommended)
+> The new macOS scanner in this fork is not published to npm/PyPI. Install this fork from source below. macOS requires Xcode Command Line Tools (`xcode-select --install`).
+
+### npm (upstream package, without these fork changes)
 
 ```bash
 npm install -g @canghe_ai/wechat-cli
@@ -56,7 +58,7 @@ Requires Python >= 3.10.
 ### From Source
 
 ```bash
-git clone https://github.com/freestylefly/wechat-cli.git
+git clone https://github.com/Alllynnn/wechat-cli.git
 cd wechat-cli
 pip install -e .
 ```
@@ -68,7 +70,7 @@ pip install -e .
 Simply paste the following prompt into Claude Code, OpenClaw, or any AI coding agent:
 
 ```bash
-帮我配置并安装：npm install -g @canghe_ai/wechat-cli
+请从 https://github.com/Alllynnn/wechat-cli 源码安装；macOS 安装后执行 wechat-cli init --prepare-helper。
 ```
 
 For example, in Claude Code:
@@ -87,6 +89,8 @@ Make sure WeChat is running, then:
 
 ```bash
 # macOS/Linux: may need sudo for memory scanning
+# macOS only: prepare the helper before scanning
+wechat-cli init --prepare-helper
 sudo wechat-cli init
 
 # Windows: run in a terminal with sufficient privileges
@@ -119,34 +123,17 @@ Before running `init`, make sure your terminal app has **Full Disk Access**:
 
 Without this permission, the tool cannot access WeChat's data directory and key extraction will fail.
 
-#### macOS: `task_for_pid failed` Error
+#### macOS scanner setup
 
-On some macOS systems, `init` may fail with `task_for_pid failed` even when running with `sudo`. This is due to macOS security restrictions on process memory access.
-
-**WeChat CLI will automatically attempt to fix this** by re-signing WeChat with the required entitlement (original entitlements are preserved). Just follow the on-screen instructions:
-
-1. The tool will re-sign WeChat automatically
-2. Quit WeChat completely (not just minimize)
-3. Reopen WeChat and log in
-4. Run `sudo wechat-cli init` again
-
-If auto re-signing fails, you can do it manually:
+Build and sign this tool's own helper first (WeChat is not modified):
 
 ```bash
-# Quit WeChat first, then:
-sudo codesign --force --sign - --entitlements /dev/stdin /Applications/WeChat.app <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.get-task-allow</key>
-    <true/>
-</dict>
-</plist>
-EOF
+wechat-cli init --prepare-helper
 ```
 
-> **Heads up:** Re-signing WeChat is safe and will **not** cause account issues or bans. However, it may affect WeChat's auto-update mechanism. If you notice any feature not working properly, or want to update WeChat to the latest version, simply re-download and reinstall WeChat from the [official website](https://mac.weixin.qq.com/) — no need to re-run `init`, your existing config and keys will continue to work.
+Keep WeChat logged in, then run `sudo wechat-cli init --force`. Select the currently logged-in account, or specify its directory with `--db-dir`. The default scan timeout is 300 seconds; use `--timeout 600` for a longer scan.
+
+The scanner reads Config.Cipher objects and XOR-obfuscated candidates, then verifies each database's page-one HMAC. Failed scans preserve existing keys. If `task_for_pid` is denied, check administrator and system access permissions. The tool does not re-sign WeChat, disable SIP, or restart WeChat.
 
 ### Step 2 — Use It
 

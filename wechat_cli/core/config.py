@@ -15,8 +15,17 @@ elif _SYSTEM == "darwin":
 else:
     _DEFAULT_PROCESS = "Weixin.exe"
 
+# sudo 初始化仍使用调用用户的目录，避免把配置写入 root 的主目录。
+USER_HOME = os.path.expanduser("~")
+STATE_OWNER = None
+if _SYSTEM == "darwin" and os.geteuid() == 0 and os.environ.get("SUDO_USER"):
+    import pwd
+    user = pwd.getpwnam(os.environ["SUDO_USER"])
+    USER_HOME = user.pw_dir
+    STATE_OWNER = (user.pw_uid, user.pw_gid)
+
 # CLI 状态目录
-STATE_DIR = os.path.expanduser("~/.wechat-cli")
+STATE_DIR = os.path.join(USER_HOME, ".wechat-cli")
 CONFIG_FILE = os.path.join(STATE_DIR, "config.json")
 KEYS_FILE = os.path.join(STATE_DIR, "all_keys.json")
 
@@ -121,7 +130,7 @@ def _auto_detect_db_dir_linux():
 
 
 def _auto_detect_db_dir_macos():
-    base = os.path.expanduser("~/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files")
+    base = os.path.join(USER_HOME, "Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files")
     if not os.path.isdir(base):
         return None
     seen = set()

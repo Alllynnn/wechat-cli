@@ -54,12 +54,13 @@ def build_platform(platform: str):
         "--clean",
     ]
 
-    # Bundle C binaries for key extraction
+    # Bundle scanner source and helper signing resources
     bin_dir = ROOT / "wechat_cli" / "bin"
     if bin_dir.exists():
         for f in bin_dir.iterdir():
             if not f.name.startswith(".") and f.is_file():
-                cmd.extend(["--add-binary", f"{f}:wechat_cli/bin"])
+                option = "--add-data" if f.suffix in (".c", ".plist") else "--add-binary"
+                cmd.extend([option, f"{f}:wechat_cli/bin"])
 
     # Hidden imports
     hidden = ["pysqlcipher3", "sqlcipher3", "Cryptodome", "zstandard"]

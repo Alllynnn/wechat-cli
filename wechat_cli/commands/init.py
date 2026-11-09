@@ -6,16 +6,34 @@ import sys
 
 import click
 
-from ..core.config import STATE_DIR, CONFIG_FILE, KEYS_FILE, auto_detect_db_dir
+from ..core.config import STATE_DIR, STATE_OWNER, CONFIG_FILE, KEYS_FILE, auto_detect_db_dir
 
 
 @click.command()
 @click.option("--db-dir", default=None, help="微信数据目录路径（默认自动检测）")
 @click.option("--force", is_flag=True, help="强制重新提取密钥")
-def init(db_dir, force):
+@click.option("--prepare-helper", is_flag=True, help="macOS：编译并签名本工具的独立扫描器")
+@click.option("--timeout", type=click.IntRange(1, 600), default=300, show_default=True,
+              help="macOS 内存扫描超时秒数")
+def init(db_dir, force, prepare_helper, timeout):
     """初始化 wechat-cli：提取密钥并生成配置"""
     click.echo("WeChat CLI 初始化")
     click.echo("=" * 40)
+
+    if prepare_helper:
+        if sys.platform != "darwin":
+            raise click.ClickException("--prepare-helper 仅支持 macOS")
+        from ..keys.scanner_macos import build_probe, _find_binary
+        try:
+            try:
+                binary = _find_binary()
+            except RuntimeError:
+                binary = build_probe()["binary"]
+        except (OSError, RuntimeError, ValueError) as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(f"[+] 扫描器已就绪: {binary}")
+        click.echo("请保持微信已登录，再执行 init；仅本工具 helper 被签名。")
+        return
 
     # 1. 检查是否已初始化
     if os.path.exists(CONFIG_FILE) and os.path.exists(KEYS_FILE) and not force:
@@ -35,6 +53,8 @@ def init(db_dir, force):
 
     # 2. 创建状态目录
     os.makedirs(STATE_DIR, exist_ok=True)
+    if STATE_OWNER is not None:
+        os.chown(STATE_DIR, *STATE_OWNER)
 
     # 3. 确定 db_dir
     if db_dir is None:
@@ -56,9 +76,11 @@ def init(db_dir, force):
     click.echo("\n开始提取密钥...")
     try:
         from ..keys import extract_keys
-        key_map = extract_keys(db_dir, KEYS_FILE)
+        key_map = extract_keys(db_dir, KEYS_FILE, timeout=timeout)
         if not key_map:
             raise RuntimeError("未提取到有效密钥，初始化未完成")
+        if STATE_OWNER is not None:
+            os.chown(KEYS_FILE, *STATE_OWNER)
     except RuntimeError as e:
         click.echo(f"\n[!] 密钥提取失败: {e}", err=True)
         if "sudo" not in str(e).lower():
@@ -74,6 +96,8 @@ def init(db_dir, force):
     }
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
+    if STATE_OWNER is not None:
+        os.chown(CONFIG_FILE, *STATE_OWNER)
 
     click.echo(f"\n[+] 初始化完成!")
     click.echo(f"    配置: {CONFIG_FILE}")
